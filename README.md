@@ -1,34 +1,34 @@
-# 🛠️ General Purpose Web Server Setup Script
+# 🛠️ Webstack Installer
 
-This bash script sets up a new domain on a VPS or dedicated server with optional database support and a mobile-optimized "Coming Soon" page. It works on Debian/Ubuntu and AlmaLinux-based systems.
+A modular and re-runnable bash script that sets up a new domain with your choice of Apache or Nginx, optional MariaDB/MySQL support, and a responsive Tailwind CSS "Coming Soon" page — all in minutes.
+
+Supports Debian/Ubuntu and AlmaLinux systems.
+
+---
 
 ## ✅ Features
 
-- Prompts for:
-  - Web server: Apache or Nginx
-  - Database: MariaDB, MySQL, or none
-  - Domain name
-- Automatically installs required packages
-- Sets up VirtualHost/Server Block
+- Web server choice: Apache or Nginx
+- Optional database setup: MariaDB, MySQL, or skip
+- Generates and logs database credentials
+- Sets up domain directory and virtual host
 - Installs free SSL via Let's Encrypt
-- Creates a Tailwind-powered mobile-first Coming Soon page
-- Saves generated database credentials to `/root/db-credentials.txt`
-- Re-runnable to add additional domains later without re-installing packages
+- Creates a mobile-optimized "Coming Soon" page
+- Re-runnable for adding multiple domains
+- Logs setup steps to `/opt/stack-setup.log`
 
 ---
 
 ## 📦 Requirements
 
-- Root or `sudo` access to the server
-- A domain name pointed to the server's IP address (for SSL)
-- A clean Debian/Ubuntu or AlmaLinux system
+- VPS or dedicated server
+- Root or sudo access
+- A registered domain pointed to the server IP
 
 ---
 
-## 🚀 Usage
+## 🚀 Quick Start
 
-### 1. Upload and Make Executable
-
-```bash
-wget https://raw.githubusercontent.com/yourusername/server-setup-script/main/setup-site.sh
-chmod +x setup-site.sh
+wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/webstack-installer.sh
+chmod +x webstack-installer.sh
+sudo ./webstack-installer.sh
