@@ -59,46 +59,75 @@ else
     done
 fi
 
-# Prompt for database
-echo "Choose a database option for this domain:"
-echo "1) MariaDB"
-echo "2) MySQL"
-echo "3) Skip"
-while true; do
-    read -rp "Enter choice [1-3]: " DB_CHOICE
-    case "$DB_CHOICE" in
-        1) DB_ENGINE="mariadb-server"; DB_NAME_ENGINE="MariaDB"; break ;;
-        2) DB_ENGINE="mysql-server"; DB_NAME_ENGINE="MySQL"; break ;;
-        3) DB_ENGINE=""; break ;;
-        *) echo "Invalid choice. Please enter 1, 2, or 3." ;;
-    esac
-done
-
-# Install and configure database
-if [ -n "$DB_ENGINE" ]; then
-    if ! command -v mysql &>/dev/null; then
-        log "Installing $DB_NAME_ENGINE..."
-        eval $INSTALL_CMD $DB_ENGINE
+# Detect existing database engine
+if command -v mysql &>/dev/null; then
+    if mysql --version | grep -qi mariadb; then
+        DB_ENGINE_INSTALLED="mariadb-server"
+        DB_NAME_ENGINE="MariaDB"
     else
-        log "$DB_NAME_ENGINE already installed."
+        DB_ENGINE_INSTALLED="mysql-server"
+        DB_NAME_ENGINE="MySQL"
     fi
+fi
 
-    read -rp "Enter new database name: " DB_NAME
-    read -rp "Enter new database user: " DB_USER
-    read -rp "Enter new database password: " DB_PASS
+# Database logic
+if [ -n "$DB_ENGINE_INSTALLED" ]; then
+    echo "💡 Detected $DB_NAME_ENGINE already installed. Using $DB_NAME_ENGINE."
+    read -rp "Do you want to create a new database for this domain? [y/N]: " CREATE_DB
+    if [[ "$CREATE_DB" =~ ^[Yy]$ ]]; then
+        read -rp "Enter new database name: " DB_NAME
+        read -rp "Enter new database user: " DB_USER
+        read -rp "Enter new database password: " DB_PASS
 
-    mysql -u root <<EOF
+        mysql -u root <<EOF
 CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
-    echo -e "\n[$DOMAIN]" >> "$DB_CREDENTIALS"
-    echo "DB Name: $DB_NAME" >> "$DB_CREDENTIALS"
-    echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
-    echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
-    log "Database credentials saved to $DB_CREDENTIALS"
+        echo -e "\n[$DOMAIN]" >> "$DB_CREDENTIALS"
+        echo "DB Name: $DB_NAME" >> "$DB_CREDENTIALS"
+        echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
+        echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
+        log "Database credentials saved to $DB_CREDENTIALS"
+    fi
+else
+    echo "Choose a database option for this domain:"
+    echo "1) MariaDB"
+    echo "2) MySQL"
+    echo "3) Skip"
+    while true; do
+        read -rp "Enter choice [1-3]: " DB_CHOICE
+        case "$DB_CHOICE" in
+            1) DB_ENGINE="mariadb-server"; DB_NAME_ENGINE="MariaDB"; break ;;
+            2) DB_ENGINE="mysql-server"; DB_NAME_ENGINE="MySQL"; break ;;
+            3) DB_ENGINE=""; break ;;
+            *) echo "Invalid choice. Please enter 1, 2, or 3." ;;
+        esac
+    done
+
+    if [ -n "$DB_ENGINE" ]; then
+        log "Installing $DB_NAME_ENGINE..."
+        eval $INSTALL_CMD $DB_ENGINE
+
+        read -rp "Enter new database name: " DB_NAME
+        read -rp "Enter new database user: " DB_USER
+        read -rp "Enter new database password: " DB_PASS
+
+        mysql -u root <<EOF
+CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;
+CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+        echo -e "\n[$DOMAIN]" >> "$DB_CREDENTIALS"
+        echo "DB Name: $DB_NAME" >> "$DB_CREDENTIALS"
+        echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
+        echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
+        log "Database credentials saved to $DB_CREDENTIALS"
+    fi
 fi
 
 # Install certbot if needed
