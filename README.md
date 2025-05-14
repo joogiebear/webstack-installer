@@ -29,6 +29,6 @@ Supports Debian/Ubuntu and AlmaLinux systems.
 
 ## 🚀 Quick Start
 
-wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/webstack-installer.sh
-chmod +x webstack-installer.sh
-sudo ./webstack-installer.sh
+- wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/webstack-installer.sh
+- chmod +x webstack-installer.sh
+- sudo ./webstack-installer.sh
