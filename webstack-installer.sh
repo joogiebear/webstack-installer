@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Permissions check
+# Safety check
 if [ "$EUID" -ne 0 ]; then
   echo "❌ This script must be run with sudo or as root."
   exit 1
@@ -38,7 +38,7 @@ eval $UPDATE_CMD
 # Prompt for domain
 read -rp "Enter the domain name to set up: " DOMAIN
 
-# Detect existing web server or prompt
+# Detect or prompt for web server
 if command -v apache2 &>/dev/null; then
     WEBSERVER="apache2"
     log "Detected Apache installed. Using Apache."
@@ -59,7 +59,7 @@ else
     done
 fi
 
-# Prompt for DB engine
+# Prompt for database
 echo "Choose a database option for this domain:"
 echo "1) MariaDB"
 echo "2) MySQL"
@@ -74,7 +74,7 @@ while true; do
     esac
 done
 
-# Install DB if selected
+# Install and configure database
 if [ -n "$DB_ENGINE" ]; then
     if ! command -v mysql &>/dev/null; then
         log "Installing $DB_NAME_ENGINE..."
@@ -83,7 +83,6 @@ if [ -n "$DB_ENGINE" ]; then
         log "$DB_NAME_ENGINE already installed."
     fi
 
-    # Prompt for DB credentials
     read -rp "Enter new database name: " DB_NAME
     read -rp "Enter new database user: " DB_USER
     read -rp "Enter new database password: " DB_PASS
@@ -108,7 +107,7 @@ if ! command -v certbot &>/dev/null; then
     eval $INSTALL_CMD certbot python3-certbot-${WEBSERVER}
 fi
 
-# Setup site root and "Coming Soon" page
+# Setup site root and Coming Soon page
 SITE_ROOT="/var/www/$DOMAIN"
 mkdir -p "$SITE_ROOT"
 
@@ -130,7 +129,7 @@ cat > "$SITE_ROOT/index.html" <<EOF
 </html>
 EOF
 
-# Setup VirtualHost or Server Block
+# Configure virtual host or server block
 if [ "$WEBSERVER" == "apache2" ]; then
     cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
 <VirtualHost *:80>
@@ -163,7 +162,8 @@ fi
 # Let's Encrypt SSL
 read -rp "Attempt Let's Encrypt SSL install for $DOMAIN? [y/N]: " SSL_CONFIRM
 if [[ "$SSL_CONFIRM" =~ ^[Yy]$ ]]; then
-    certbot --$WEBSERVER -d "$DOMAIN" --redirect
+    read -rp "Enter your email for Let's Encrypt (used for renewal alerts): " LETSENCRYPT_EMAIL
+    certbot --$WEBSERVER -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect
 fi
 
 log "✅ Setup complete for $DOMAIN!"
