@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Safety check for permissions
+# Permissions check
 if [ "$EUID" -ne 0 ]; then
   echo "❌ This script must be run with sudo or as root."
   exit 1
@@ -13,7 +13,6 @@ set -e
 LOG_FILE="/opt/stack-setup.log"
 DB_CREDENTIALS="/root/db-credentials.txt"
 
-# Logging helper
 log() {
     echo "$1"
     echo "$1" >> "$LOG_FILE"
@@ -39,61 +38,52 @@ eval $UPDATE_CMD
 # Prompt for domain
 read -rp "Enter the domain name to set up: " DOMAIN
 
-# Prompt for web server choice
-echo "Choose a web server:"
-echo "1) Apache"
-echo "2) Nginx"
-read -rp "Enter choice [1-2]: " WEBSERVER_CHOICE
-
-# Install web server if needed
-if [[ "$WEBSERVER_CHOICE" == "1" ]]; then
+# Detect existing web server or prompt
+if command -v apache2 &>/dev/null; then
     WEBSERVER="apache2"
-    if ! command -v apache2 &>/dev/null; then
-        log "Installing Apache..."
-        eval $INSTALL_CMD apache2
-    else
-        log "Apache already installed."
-    fi
-elif [[ "$WEBSERVER_CHOICE" == "2" ]]; then
+    log "Detected Apache installed. Using Apache."
+elif command -v nginx &>/dev/null; then
     WEBSERVER="nginx"
-    if ! command -v nginx &>/dev/null; then
-        log "Installing Nginx..."
-        eval $INSTALL_CMD nginx
-    else
-        log "Nginx already installed."
-    fi
+    log "Detected Nginx installed. Using Nginx."
 else
-    echo "Invalid web server selection."
-    exit 1
+    echo "Choose a web server:"
+    echo "1) Apache"
+    echo "2) Nginx"
+    while true; do
+        read -rp "Enter choice [1-2]: " WEBSERVER_CHOICE
+        case "$WEBSERVER_CHOICE" in
+            1) WEBSERVER="apache2"; eval $INSTALL_CMD apache2; break ;;
+            2) WEBSERVER="nginx"; eval $INSTALL_CMD nginx; break ;;
+            *) echo "Invalid choice. Please enter 1 or 2." ;;
+        esac
+    done
 fi
 
-# Prompt for database choice
-echo "Install database?"
+# Prompt for DB engine
+echo "Choose a database option for this domain:"
 echo "1) MariaDB"
 echo "2) MySQL"
 echo "3) Skip"
-read -rp "Enter choice [1-3]: " DB_CHOICE
+while true; do
+    read -rp "Enter choice [1-3]: " DB_CHOICE
+    case "$DB_CHOICE" in
+        1) DB_ENGINE="mariadb-server"; DB_NAME_ENGINE="MariaDB"; break ;;
+        2) DB_ENGINE="mysql-server"; DB_NAME_ENGINE="MySQL"; break ;;
+        3) DB_ENGINE=""; break ;;
+        *) echo "Invalid choice. Please enter 1, 2, or 3." ;;
+    esac
+done
 
-if [[ "$DB_CHOICE" == "1" ]]; then
-    DB_ENGINE="mariadb-server"
-elif [[ "$DB_CHOICE" == "2" ]]; then
-    DB_ENGINE="mysql-server"
-elif [[ "$DB_CHOICE" == "3" ]]; then
-    DB_ENGINE=""
-else
-    echo "Invalid database choice."
-    exit 1
-fi
-
-# Install and set up database if selected
+# Install DB if selected
 if [ -n "$DB_ENGINE" ]; then
     if ! command -v mysql &>/dev/null; then
-        log "Installing $DB_ENGINE..."
+        log "Installing $DB_NAME_ENGINE..."
         eval $INSTALL_CMD $DB_ENGINE
     else
-        log "$DB_ENGINE already installed."
+        log "$DB_NAME_ENGINE already installed."
     fi
 
+    # Prompt for DB credentials
     read -rp "Enter new database name: " DB_NAME
     read -rp "Enter new database user: " DB_USER
     read -rp "Enter new database password: " DB_PASS
@@ -112,17 +102,13 @@ EOF
     log "Database credentials saved to $DB_CREDENTIALS"
 fi
 
-# Install certbot if not installed
+# Install certbot if needed
 if ! command -v certbot &>/dev/null; then
     log "Installing Certbot..."
-    if [ "$OS" == "debian" ]; then
-        eval $INSTALL_CMD certbot python3-certbot-${WEBSERVER}
-    else
-        eval $INSTALL_CMD certbot python3-certbot-${WEBSERVER}
-    fi
+    eval $INSTALL_CMD certbot python3-certbot-${WEBSERVER}
 fi
 
-# Set up site directory and Coming Soon page
+# Setup site root and "Coming Soon" page
 SITE_ROOT="/var/www/$DOMAIN"
 mkdir -p "$SITE_ROOT"
 
@@ -144,7 +130,7 @@ cat > "$SITE_ROOT/index.html" <<EOF
 </html>
 EOF
 
-# Create VirtualHost/Server Block
+# Setup VirtualHost or Server Block
 if [ "$WEBSERVER" == "apache2" ]; then
     cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
 <VirtualHost *:80>
@@ -174,7 +160,7 @@ EOF
     nginx -t && systemctl reload nginx
 fi
 
-# Ask for Let's Encrypt SSL
+# Let's Encrypt SSL
 read -rp "Attempt Let's Encrypt SSL install for $DOMAIN? [y/N]: " SSL_CONFIRM
 if [[ "$SSL_CONFIRM" =~ ^[Yy]$ ]]; then
     certbot --$WEBSERVER -d "$DOMAIN" --redirect
