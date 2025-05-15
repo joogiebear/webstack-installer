@@ -133,7 +133,15 @@ fi
 # Install certbot if needed
 if ! command -v certbot &>/dev/null; then
     log "Installing Certbot..."
-    eval $INSTALL_CMD certbot python3-certbot-${WEBSERVER}
+
+    if [ "$WEBSERVER" == "apache2" ]; then
+        eval $INSTALL_CMD certbot python3-certbot-apache
+    elif [ "$WEBSERVER" == "nginx" ]; then
+        eval $INSTALL_CMD certbot python3-certbot-nginx
+    else
+        log "❌ Unsupported web server for Certbot plugin."
+        exit 1
+    fi
 fi
 
 # Setup site root and Coming Soon page
