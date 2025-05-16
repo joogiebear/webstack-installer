@@ -200,7 +200,23 @@ fi
 read -rp "Attempt Let's Encrypt SSL install for $DOMAIN? [y/N]: " SSL_CONFIRM
 if [[ "$SSL_CONFIRM" =~ ^[Yy]$ ]]; then
     read -rp "Enter your email for Let's Encrypt (used for renewal alerts): " LETSENCRYPT_EMAIL
-    certbot --$WEBSERVER -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect
+
+    # Map apache2/nginx → certbot plugin flag
+    if [ "$WEBSERVER" = "apache2" ]; then
+        PLUGIN="apache"
+    elif [ "$WEBSERVER" = "nginx" ]; then
+        PLUGIN="nginx"
+    else
+        echo "❌ Unsupported web server for Certbot plugin."
+        exit 1
+    fi
+
+    # Run certbot with the correct plugin
+    certbot --"$PLUGIN" -d "$DOMAIN" \
+      --non-interactive \
+      --agree-tos \
+      --email "$LETSENCRYPT_EMAIL" \
+      --redirect
 fi
 
 log "✅ Setup complete for $DOMAIN!"
