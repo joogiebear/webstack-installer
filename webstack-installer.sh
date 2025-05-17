@@ -11,6 +11,7 @@ fi
 set -e
 
 LOG_FILE="/opt/stack-setup.log"
+DB_CREDENTIALS="/root/db-credentials.txt"
 
 log() {
     echo "$1"
@@ -36,43 +37,111 @@ eval $UPDATE_CMD
 
 # Prompt for domain
 read -rp "Enter the domain name to set up: " DOMAIN
-DOMAIN_DIR="/root/webstack-sites/$DOMAIN"
-mkdir -p "$DOMAIN_DIR"
-DB_CREDENTIALS="$DOMAIN_DIR/db.txt"
 
-# Install Apache
-log "Installing Apache..."
-eval $INSTALL_CMD apache2
+# Detect or prompt for web server
+if command -v apache2 &>/dev/null; then
+    WEBSERVER="apache2"
+    log "Detected Apache installed. Using Apache."
+elif command -v nginx &>/dev/null; then
+    WEBSERVER="nginx"
+    log "Detected Nginx installed. Using Nginx."
+else
+    echo "Choose a web server:"
+    echo "1) Apache"
+    echo "2) Nginx"
+    while true; do
+        read -rp "Enter choice [1-2]: " WEBSERVER_CHOICE
+        case "$WEBSERVER_CHOICE" in
+            1) WEBSERVER="apache2"; eval $INSTALL_CMD apache2; break ;;
+            2) WEBSERVER="nginx"; eval $INSTALL_CMD nginx; break ;;
+            *) echo "Invalid choice. Please enter 1 or 2." ;;
+        esac
+    done
+fi
 
-# Install MariaDB
-log "Installing MariaDB..."
-eval $INSTALL_CMD mariadb-server
-systemctl enable mariadb
-systemctl start mariadb
+# Detect existing database engine
+if command -v mysql &>/dev/null; then
+    if mysql --version | grep -qi mariadb; then
+        DB_ENGINE_INSTALLED="mariadb-server"
+        DB_NAME_ENGINE="MariaDB"
+    else
+        DB_ENGINE_INSTALLED="mysql-server"
+        DB_NAME_ENGINE="MySQL"
+    fi
+fi
 
-# Generate DB info
-DB_NAME="db_${RANDOM}"
-DB_USER="user_${RANDOM}"
-DB_PASS=$(openssl rand -base64 16)
+# Database logic
+if [ -n "$DB_ENGINE_INSTALLED" ]; then
+    echo "💡 Detected $DB_NAME_ENGINE already installed. Using $DB_NAME_ENGINE."
+    read -rp "Do you want to create a new database for this domain? [y/N]: " CREATE_DB
+    if [[ "$CREATE_DB" =~ ^[Yy]$ ]]; then
+        read -rp "Enter new database name: " DB_NAME
+        read -rp "Enter new database user: " DB_USER
+        read -rp "Enter new database password: " DB_PASS
 
-# Create DB and user
-mysql -u root <<EOF
+        mysql -u root <<EOF
 CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 
-# Save credentials
-echo "DB Name: $DB_NAME" > "$DB_CREDENTIALS"
-echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
-echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
-log "Database credentials saved to $DB_CREDENTIALS"
+        echo -e "\n[$DOMAIN]" >> "$DB_CREDENTIALS"
+        echo "DB Name: $DB_NAME" >> "$DB_CREDENTIALS"
+        echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
+        echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
+        log "Database credentials saved to $DB_CREDENTIALS"
+    fi
+else
+    echo "Choose a database option for this domain:"
+    echo "1) MariaDB"
+    echo "2) MySQL"
+    echo "3) Skip"
+    while true; do
+        read -rp "Enter choice [1-3]: " DB_CHOICE
+        case "$DB_CHOICE" in
+            1) DB_ENGINE="mariadb-server"; DB_NAME_ENGINE="MariaDB"; break ;;
+            2) DB_ENGINE="mysql-server"; DB_NAME_ENGINE="MySQL"; break ;;
+            3) DB_ENGINE=""; break ;;
+            *) echo "Invalid choice. Please enter 1, 2, or 3." ;;
+        esac
+    done
 
-# Install Certbot if needed
+    if [ -n "$DB_ENGINE" ]; then
+        log "Installing $DB_NAME_ENGINE..."
+        eval $INSTALL_CMD $DB_ENGINE
+
+        read -rp "Enter new database name: " DB_NAME
+        read -rp "Enter new database user: " DB_USER
+        read -rp "Enter new database password: " DB_PASS
+
+        mysql -u root <<EOF
+CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;
+CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+
+        echo -e "\n[$DOMAIN]" >> "$DB_CREDENTIALS"
+        echo "DB Name: $DB_NAME" >> "$DB_CREDENTIALS"
+        echo "DB User: $DB_USER" >> "$DB_CREDENTIALS"
+        echo "DB Pass: $DB_PASS" >> "$DB_CREDENTIALS"
+        log "Database credentials saved to $DB_CREDENTIALS"
+    fi
+fi
+
+# Install certbot if needed
 if ! command -v certbot &>/dev/null; then
     log "Installing Certbot..."
-    eval $INSTALL_CMD certbot python3-certbot-apache
+
+    if [ "$WEBSERVER" == "apache2" ]; then
+        eval $INSTALL_CMD certbot python3-certbot-apache
+    elif [ "$WEBSERVER" == "nginx" ]; then
+        eval $INSTALL_CMD certbot python3-certbot-nginx
+    else
+        log "❌ Unsupported web server for Certbot plugin."
+        exit 1
+    fi
 fi
 
 # Setup site root and Coming Soon page
@@ -97,8 +166,9 @@ cat > "$SITE_ROOT/index.html" <<EOF
 </html>
 EOF
 
-# Apache virtual host
-cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
+# Configure virtual host or server block
+if [ "$WEBSERVER" == "apache2" ]; then
+    cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
 <VirtualHost *:80>
     ServerName $DOMAIN
     DocumentRoot $SITE_ROOT
@@ -108,16 +178,41 @@ cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
     </Directory>
 </VirtualHost>
 EOF
+    a2ensite "$DOMAIN.conf"
+    systemctl reload apache2
+elif [ "$WEBSERVER" == "nginx" ]; then
+    cat > "/etc/nginx/conf.d/$DOMAIN.conf" <<EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    root $SITE_ROOT;
+    index index.html;
 
-a2ensite "$DOMAIN.conf"
-systemctl reload apache2
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+EOF
+    nginx -t && systemctl reload nginx
+fi
 
 # Let's Encrypt SSL
 read -rp "Attempt Let's Encrypt SSL install for $DOMAIN? [y/N]: " SSL_CONFIRM
 if [[ "$SSL_CONFIRM" =~ ^[Yy]$ ]]; then
     read -rp "Enter your email for Let's Encrypt (used for renewal alerts): " LETSENCRYPT_EMAIL
 
-    certbot --apache -d "$DOMAIN" \
+    # Map apache2/nginx → certbot plugin flag
+    if [ "$WEBSERVER" = "apache2" ]; then
+        PLUGIN="apache"
+    elif [ "$WEBSERVER" = "nginx" ]; then
+        PLUGIN="nginx"
+    else
+        echo "❌ Unsupported web server for Certbot plugin."
+        exit 1
+    fi
+
+    # Run certbot with the correct plugin
+    certbot --"$PLUGIN" -d "$DOMAIN" \
       --non-interactive \
       --agree-tos \
       --email "$LETSENCRYPT_EMAIL" \
