@@ -36,26 +36,19 @@ A simple bash-based installer and remover for hosting individual websites on a V
 ### 1. Run the Installer Script
 
 ```bash
-sudo bash webstack-installer.sh
-
-    Enter your domain (e.g., example.com)
-
-    Apache and MariaDB will be installed if not present
-
-    A new DB + user + password will be generated
-
-    Files saved to: /root/webstack-sites/example.com/db.txt
-
-    Site root: /var/www/example.com
-
-    Apache virtual host auto-enabled
+wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/webstack-installer.sh
+chmod +x webstack-installer.sh
+sudo ./webstack-installer.sh
 ```
 You can optionally enable SSL via Let's Encrypt when prompted.
 🧹 Removal
 
 To completely remove a site, run:
 ```bash
-sudo bash remove-domain.sh
+wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/remove-domain.sh
+chmod +x remove-domain.sh
+sudo ./remove-domain.sh
+
 ```
 This will:
 
