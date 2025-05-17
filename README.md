@@ -49,14 +49,14 @@ sudo bash webstack-installer.sh
     Site root: /var/www/example.com
 
     Apache virtual host auto-enabled
-
+```
 You can optionally enable SSL via Let's Encrypt when prompted.
 🧹 Removal
 
 To completely remove a site, run:
-
+```bash
 sudo bash remove-domain.sh
-
+```
 This will:
 
     Disable and remove the Apache site config
@@ -84,20 +84,3 @@ This will:
 🔐 Security Note
 
 All credentials are saved in plain text under /root/webstack-sites/. Restrict access to the /root directory and make sure only root/sudo users can access it.
-🔄 To-Do / Future Ideas
-
-    Nginx support
-
-    Docker version
-
-    Optional PHP version installer
-
-    Let's Encrypt auto-renew cron job
-
-    Site management dashboard
-
-🛠 Author
-
-Built by [Your Name or Handle]
-
-License: MIT
