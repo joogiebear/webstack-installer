@@ -1,34 +1,102 @@
-# 🛠️ Webstack Installer
+# WebStack Installer
 
-A modular and re-runnable bash script that sets up a new domain with your choice of Apache or Nginx, optional MariaDB/MySQL support, and a responsive Tailwind CSS "Coming Soon" page — all in minutes.
-
-Supports Debian/Ubuntu and AlmaLinux systems.
+A simple bash-based installer and remover for hosting individual websites on a VPS or dedicated server. Automatically sets up Apache, MariaDB, a Tailwind "Coming Soon" page, SSL with Let's Encrypt, and stores per-domain database credentials.
 
 ---
 
 ## ✅ Features
 
-- Web server choice: Apache or Nginx
-- Optional database setup: MariaDB, MySQL, or skip
-- Generates and logs database credentials
-- Sets up domain directory and virtual host
-- Installs free SSL via Let's Encrypt
-- Creates a mobile-optimized "Coming Soon" page
-- Re-runnable for adding multiple domains
-- Logs setup steps to `/opt/stack-setup.log`
+- Auto-installs **Apache** and **MariaDB**
+- Creates a **unique database, user, and password** for each domain
+- Deploys a **"Coming Soon" landing page** using Tailwind CSS
+- Generates and configures **Apache virtual hosts**
+- Optionally installs **Let's Encrypt SSL** automatically
+- Saves credentials in per-domain folders:
+
+/root/webstack-sites/
+└── example.com/
+├── db.txt
+└── (future logs/configs)
+
+- Includes a **removal script** to fully delete a domain, its site files, DB, and SSL cert
 
 ---
 
 ## 📦 Requirements
 
-- VPS or dedicated server
-- Root or sudo access
-- A registered domain pointed to the server IP
+- Ubuntu/Debian or AlmaLinux (auto-detected)
+- Root or `sudo` privileges
+- Domain pointed to your server IP (for SSL)
 
 ---
 
-## 🚀 Quick Start
-``` bash
-wget https://raw.githubusercontent.com/joogiebear/webstack-installer/main/webstack-installer.sh
-chmod +x webstack-installer.sh
-sudo ./webstack-installer.sh
+## 🚀 Installation
+
+### 1. Run the Installer Script
+
+```bash
+sudo bash webstack-installer.sh
+
+    Enter your domain (e.g., example.com)
+
+    Apache and MariaDB will be installed if not present
+
+    A new DB + user + password will be generated
+
+    Files saved to: /root/webstack-sites/example.com/db.txt
+
+    Site root: /var/www/example.com
+
+    Apache virtual host auto-enabled
+
+You can optionally enable SSL via Let's Encrypt when prompted.
+🧹 Removal
+
+To completely remove a site, run:
+
+sudo bash remove-domain.sh
+
+This will:
+
+    Disable and remove the Apache site config
+
+    Delete /var/www/yourdomain.com
+
+    Drop the database and user from MariaDB
+
+    Delete /root/webstack-sites/yourdomain.com/
+
+    Optionally remove the Let's Encrypt SSL certificate
+
+📁 Example File Structure
+
+/root/webstack-sites/
+└── example.com/
+    └── db.txt
+
+/var/www/example.com/
+└── index.html
+
+/etc/apache2/sites-available/
+└── example.com.conf
+
+🔐 Security Note
+
+All credentials are saved in plain text under /root/webstack-sites/. Restrict access to the /root directory and make sure only root/sudo users can access it.
+🔄 To-Do / Future Ideas
+
+    Nginx support
+
+    Docker version
+
+    Optional PHP version installer
+
+    Let's Encrypt auto-renew cron job
+
+    Site management dashboard
+
+🛠 Author
+
+Built by [Your Name or Handle]
+
+License: MIT
