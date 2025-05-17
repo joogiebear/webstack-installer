@@ -12,7 +12,7 @@ A simple bash-based installer and remover for hosting individual websites on a V
 - Generates and configures **Apache virtual hosts**
 - Optionally installs **Let's Encrypt SSL** automatically
 - Saves credentials in per-domain folders:
-
+```bash
 /root/webstack-sites/
 └── example.com/
 ├── db.txt
