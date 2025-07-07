@@ -72,6 +72,11 @@ eval $INSTALL_CMD $PHP_PACKAGES
 a2enmod php${PHP_VERSION}
 systemctl restart apache2
 
+# ✅ phpMyAdmin install section
+log "Installing phpMyAdmin..."
+DEBIAN_FRONTEND=noninteractive apt install -y phpmyadmin
+ln -s /usr/share/phpmyadmin /var/www/html/phpmyadmin || true
+log "phpMyAdmin available at /phpmyadmin"
 
 # Generate database credentials
 DB_NAME="db_${RANDOM}"
