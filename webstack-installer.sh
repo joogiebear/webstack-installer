@@ -45,49 +45,33 @@ eval $INSTALL_CMD mariadb-server
 systemctl enable mariadb
 systemctl start mariadb
 
-# PHP version selector
-echo "Select PHP version to install:"
-echo "1) PHP 8.3"
-echo "2) PHP 8.2"
-echo "3) PHP 8.1"
-read -rp "Enter choice [1-3]: " PHP_VER_CHOICE
+# Set default PHP version
+PHP_VERSION="8.4"
 
-case "$PHP_VER_CHOICE" in
-  1) PHP_VERSION="8.3" ;;
-  2) PHP_VERSION="8.2" ;;
-  3) PHP_VERSION="8.1" ;;
-  *) echo "Invalid choice, defaulting to PHP 8.3"; PHP_VERSION="8.3" ;;
-esac
-
-# Extension profile
-echo "Select PHP extension profile:"
-echo "1) Minimal (php-cli, php-mysql)"
-echo "2) Full (recommended)"
-read -rp "Enter choice [1-2]: " EXT_CHOICE
-
-# Add PHP PPA (if not already added)
-if ! grep -q "ondrej/php" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
-  apt install -y software-properties-common
-  add-apt-repository -y ppa:ondrej/php
+# Add Sury PHP repo for Debian
+if ! grep -q "packages.sury.org" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
+  log "Adding Sury PHP repository for Debian..."
+  apt install -y apt-transport-https lsb-release ca-certificates curl gnupg2
+  curl -fsSL https://packages.sury.org/php/apt.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/sury.gpg
+  echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/php.list
   eval $UPDATE_CMD
 fi
 
-# Remove conflicting older modules
-a2dismod php7.4 php8.0 php8.1 php8.2 php8.3 &>/dev/null || true
+# Remove any conflicting PHP modules
+a2dismod php7.4 php8.0 php8.1 php8.2 php8.3 php8.4 &>/dev/null || true
 
-# Install PHP core + extensions
-PHP_PACKAGES="php${PHP_VERSION} php${PHP_VERSION}-cli php${PHP_VERSION}-mysql libapache2-mod-php${PHP_VERSION}"
+# Install full PHP 8.4 + Apache module
+PHP_PACKAGES="php${PHP_VERSION} php${PHP_VERSION}-cli php${PHP_VERSION}-mysql libapache2-mod-php${PHP_VERSION} \
+php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml \
+php${PHP_VERSION}-zip php${PHP_VERSION}-bcmath"
 
-if [[ "$EXT_CHOICE" == "2" ]]; then
-  PHP_PACKAGES="$PHP_PACKAGES php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-bcmath"
-fi
-
-log "Installing PHP $PHP_VERSION and extensions..."
+log "Installing PHP ${PHP_VERSION} with full extensions..."
 eval $INSTALL_CMD $PHP_PACKAGES
 
-# Enable Apache PHP module
+# Enable PHP module
 a2enmod php${PHP_VERSION}
 systemctl restart apache2
+
 
 # Generate database credentials
 DB_NAME="db_${RANDOM}"
