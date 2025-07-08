@@ -1,9 +1,19 @@
 #!/bin/bash
-if [ "$EUID" -ne 0 ]; then echo "❌ This script must be run with sudo or as root."; exit 1; elif [ -z "$SUDO_USER" ]; then echo "⚠️  You are running this as the root user. It's safer to run with sudo instead."; fi
 
 set -e
+
 LOG_FILE="/opt/stack-setup.log"
-log() { echo "$1"; echo "$1" >> "$LOG_FILE"; }
+log() {
+    echo "$1"
+    echo "$1" >> "$LOG_FILE"
+}
+
+if [ "$EUID" -ne 0 ]; then
+  echo "❌ This script must be run with sudo or as root."
+  exit 1
+elif [ -z "$SUDO_USER" ]; then
+  echo "⚠️  You are running this as the root user. It's safer to run with sudo instead."
+fi
 
 if [ -f /etc/debian_version ]; then
     OS="debian"
@@ -17,12 +27,17 @@ fi
 eval $UPDATE_CMD
 
 read -rp "Enter the domain name to set up: " DOMAIN
-DOMAIN_DIR="/root/webstack-sites/$DOMAIN"
-mkdir -p "$DOMAIN_DIR"
+USERNAME="usr_$(openssl rand -hex 3)"
+DOMAIN_DIR="/var/www/$USERNAME"
+SITE_ROOT="$DOMAIN_DIR/public_html"
+mkdir -p "$SITE_ROOT"
+mkdir -p "$DOMAIN_DIR/logs"
 DB_CREDENTIALS="$DOMAIN_DIR/db.txt"
 
+log "Installing Apache..."
 eval $INSTALL_CMD apache2
 
+log "Installing MariaDB..."
 eval $INSTALL_CMD mariadb-server
 systemctl enable mariadb
 systemctl start mariadb
@@ -38,18 +53,20 @@ fi
 
 a2dismod php7.4 php8.0 php8.1 php8.2 php8.3 php8.4 &>/dev/null || true
 
-PHP_PACKAGES="php${PHP_VERSION} php${PHP_VERSION}-cli php${PHP_VERSION}-mysql libapache2-mod-php${PHP_VERSION} php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml php${PHP_VERSION}-zip php${PHP_VERSION}-bcmath"
-eval $INSTALL_CMD $PHP_PACKAGES
+PHP_PACKAGES="php${PHP_VERSION} php${PHP_VERSION}-cli php${PHP_VERSION}-mysql libapache2-mod-php${PHP_VERSION} \
+php${PHP_VERSION}-curl php${PHP_VERSION}-gd php${PHP_VERSION}-mbstring php${PHP_VERSION}-xml \
+php${PHP_VERSION}-zip php${PHP_VERSION}-bcmath"
 
+eval $INSTALL_CMD $PHP_PACKAGES
 a2enmod php${PHP_VERSION}
 systemctl restart apache2
 
-eval $INSTALL_CMD phpmyadmin
-a2enconf phpmyadmin
-systemctl reload apache2
+log "Installing phpMyAdmin..."
+DEBIAN_FRONTEND=noninteractive apt install -y phpmyadmin
+ln -s /usr/share/phpmyadmin "$SITE_ROOT/phpmyadmin" || true
 
-DB_NAME="db_${RANDOM}"
-DB_USER="user_${RANDOM}"
+DB_NAME="db_$(openssl rand -hex 3)"
+DB_USER="usr_$(openssl rand -hex 3)"
 DB_PASS=$(openssl rand -base64 16)
 
 mysql -u root <<EOF
@@ -67,9 +84,6 @@ log "Database credentials saved to $DB_CREDENTIALS"
 if ! command -v certbot &>/dev/null; then
     eval $INSTALL_CMD certbot python3-certbot-apache
 fi
-
-SITE_ROOT="/var/www/$DOMAIN"
-mkdir -p "$SITE_ROOT"
 
 cat > "$SITE_ROOT/index.html" <<EOF
 <!DOCTYPE html>
@@ -101,6 +115,8 @@ cat > "/etc/apache2/sites-available/$DOMAIN.conf" <<EOF
         AllowOverride All
         Require all granted
     </Directory>
+    ErrorLog $DOMAIN_DIR/logs/error.log
+    CustomLog $DOMAIN_DIR/logs/access.log combined
 </VirtualHost>
 EOF
 
@@ -113,4 +129,4 @@ if [[ "$SSL_CONFIRM" =~ ^[Yy]$ ]]; then
     certbot --apache -d "$DOMAIN" --non-interactive --agree-tos --email "$LETSENCRYPT_EMAIL" --redirect
 fi
 
-log "✅ Setup complete for $DOMAIN!"
+log "✅ Setup complete for $DOMAIN at https://$DOMAIN"
