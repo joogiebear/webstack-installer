@@ -34,6 +34,16 @@ mkdir -p "$SITE_ROOT"
 mkdir -p "$DOMAIN_DIR/logs"
 DB_CREDENTIALS="$DOMAIN_DIR/db.txt"
 
+# PHP version selection
+echo "Choose PHP version to install:"
+PS3="Enter a number (1-5): "
+select PHP_VERSION in 8.0 8.1 8.2 8.3 8.4; do
+    case $PHP_VERSION in
+        8.0|8.1|8.2|8.3|8.4) break ;;
+        *) echo "❌ Invalid choice. Please select a valid number from the list." ;;
+    esac
+done
+
 log "Installing Apache..."
 eval $INSTALL_CMD apache2
 
@@ -41,15 +51,6 @@ log "Installing MariaDB..."
 eval $INSTALL_CMD mariadb-server
 systemctl enable mariadb
 systemctl start mariadb
-
-echo "Choose PHP version to install:"
-select PHP_VERSION in 8.0 8.1 8.2 8.3 8.4; do
-    case $PHP_VERSION in
-        8.0|8.1|8.2|8.3|8.4) break ;;
-        *) echo "❌ Invalid choice. Please select a number from 1 to 5." ;;
-    esac
-done
-
 
 if ! grep -q "packages.sury.org" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
   apt install -y apt-transport-https lsb-release ca-certificates curl gnupg2
