@@ -6,9 +6,17 @@ read -rp "Enter the domain name you want to remove (e.g., example.com): " DOMAIN
 
 CONF_PATH="/etc/apache2/sites-available/$DOMAIN.conf"
 LE_SSL_CONF="/etc/apache2/sites-available/${DOMAIN}-le-ssl.conf"
-SITE_ROOT="/var/www/$DOMAIN"
-CRED_FILE="/root/webstack-sites/$DOMAIN/db.txt"
-DOMAIN_DIR="/root/webstack-sites/$DOMAIN"
+
+# Find the random user directory by scanning Apache config
+USERNAME=$(grep -oP '(?<=DocumentRoot /var/www/)[^/]+' "$CONF_PATH" 2>/dev/null)
+if [ -z "$USERNAME" ]; then
+    echo "❌ Could not determine user folder for $DOMAIN. Is the Apache config missing or altered?"
+    exit 1
+fi
+
+DOMAIN_DIR="/var/www/$USERNAME"
+SITE_ROOT="$DOMAIN_DIR/public_html"
+CRED_FILE="$DOMAIN_DIR/db.txt"
 
 # Disable and delete Apache configs
 if [ -f "$CONF_PATH" ]; then
@@ -23,8 +31,6 @@ if [ -f "$LE_SSL_CONF" ]; then
     echo "🔧 Disabling and removing SSL config: $LE_SSL_CONF"
     a2dissite "${DOMAIN}-le-ssl.conf"
     rm -f "$LE_SSL_CONF"
-else
-    echo "⚠️ No Let's Encrypt SSL config found at $LE_SSL_CONF"
 fi
 
 systemctl reload apache2
@@ -49,12 +55,12 @@ DROP USER IF EXISTS '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
 else
-    echo "⚠️ No database credentials found for $DOMAIN at $CRED_FILE"
+    echo "⚠️ No database credentials found at $CRED_FILE"
 fi
 
-# Delete per-domain credentials folder
+# Delete the full domain folder
 if [ -d "$DOMAIN_DIR" ]; then
-    echo "🧹 Removing domain credential folder: $DOMAIN_DIR"
+    echo "🧹 Removing domain folder: $DOMAIN_DIR"
     rm -rf "$DOMAIN_DIR"
 fi
 
