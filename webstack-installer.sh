@@ -42,7 +42,14 @@ eval $INSTALL_CMD mariadb-server
 systemctl enable mariadb
 systemctl start mariadb
 
-PHP_VERSION="8.4"
+echo "Choose PHP version to install:"
+select PHP_VERSION in 8.0 8.1 8.2 8.3 8.4; do
+    case $PHP_VERSION in
+        8.0|8.1|8.2|8.3|8.4) break ;;
+        *) echo "❌ Invalid choice. Please select a number from 1 to 5." ;;
+    esac
+done
+
 
 if ! grep -q "packages.sury.org" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
   apt install -y apt-transport-https lsb-release ca-certificates curl gnupg2
