@@ -10,7 +10,7 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-REPO="YOUR-USERNAME/webstack-installer"
+REPO="joogiebear/webstack-installer"
 BRANCH="main"
 INSTALL_DIR="$HOME/webstack-installer"
 
