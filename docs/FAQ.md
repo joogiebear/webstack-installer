@@ -53,7 +53,7 @@ Community support through GitHub Issues and Discussions. Check documentation fir
 
 Quick install:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/webstack-installer/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/joogiebear/webstack-installer/main/install.sh | sudo bash
 ```
 
 See [INSTALLATION.md](INSTALLATION.md) for detailed instructions.
@@ -605,8 +605,8 @@ Consider WHMCS or similar for complete reseller setup.
 ## 🆘 Still Need Help?
 
 - **Documentation**: Read [INSTALLATION.md](INSTALLATION.md)
-- **Issues**: [Open a GitHub Issue](https://github.com/YOUR-USERNAME/webstack-installer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR-USERNAME/webstack-installer/discussions)
+- **Issues**: [Open a GitHub Issue](https://github.com/joogiebear/webstack-installer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/joogiebear/webstack-installer/discussions)
 - **Logs**: Always check logs when troubleshooting
 
 ---
