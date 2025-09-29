@@ -28,7 +28,7 @@ Complete guide to installing and configuring WebStack Installer.
 One command installation:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR-USERNAME/webstack-installer/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/joogiebear/webstack-installer/main/install.sh | sudo bash
 ```
 
 This will:
@@ -43,7 +43,7 @@ For development or customization:
 
 ```bash
 # Clone repository
-git clone https://github.com/YOUR-USERNAME/webstack-installer.git
+git clone https://github.com/joogiebear/webstack-installer.git
 
 # Navigate to directory
 cd webstack-installer
@@ -61,7 +61,7 @@ Download and extract:
 
 ```bash
 # Download ZIP
-wget https://github.com/YOUR-USERNAME/webstack-installer/archive/refs/heads/main.zip
+wget https://github.com/joogiebear/webstack-installer/archive/refs/heads/main.zip
 
 # Extract
 unzip main.zip
@@ -481,8 +481,8 @@ sudo certbot certificates
 ## 📞 Getting Help
 
 - **Documentation**: Check [FAQ](FAQ.md)
-- **Issues**: [GitHub Issues](https://github.com/YOUR-USERNAME/webstack-installer/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/YOUR-USERNAME/webstack-installer/discussions)
+- **Issues**: [GitHub Issues](https://github.com/joogiebear/webstack-installer/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/joogiebear/webstack-installer/discussions)
 - **Logs**: Check system and application logs
 
 ---
