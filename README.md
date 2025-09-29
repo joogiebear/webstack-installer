@@ -30,12 +30,12 @@ Transform your VPS into a powerful multi-domain hosting platform with Apache, My
 
 ### Method 1: One-Line Install (Recommended)
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR-REPO/webstack-installer/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/joogiebear/webstack-installer/main/install.sh | sudo bash
 ```
 
 ### Method 2: Git Clone
 ```bash
-git clone https://github.com/YOUR-REPO/webstack-installer.git
+git clone https://github.com/joogiebear/webstack-installer.git
 cd webstack-installer
 sudo ./webstack-menu.sh
 ```
