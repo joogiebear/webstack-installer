@@ -1,0 +1,57 @@
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node modules (if any)
+node_modules/
+
+# Test files
+test-output/
+coverage/
+
+# Documentation build
+_site/
+.jekyll-cache/
+
+# Package files
+*.zip
+*.tar.gz
+*.tgz
+
+# Credentials (safety measure)
+*credentials*.txt
+*password*.txt
+db-*.txt
+
+# Keep example files
+!examples/**
