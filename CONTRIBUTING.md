@@ -69,7 +69,7 @@ Documentation improvements are always welcome:
 
 ```bash
 # Fork the repository on GitHub, then:
-git clone https://github.com/YOUR-USERNAME/webstack-installer.git
+git clone https://github.com/joogiebear/webstack-installer.git
 cd webstack-installer
 ```
 
