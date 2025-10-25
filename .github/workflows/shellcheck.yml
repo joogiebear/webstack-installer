@@ -1,0 +1,49 @@
+name: ShellCheck
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**.sh'
+      - '.github/workflows/shellcheck.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**.sh'
+      - '.github/workflows/shellcheck.yml'
+
+jobs:
+  shellcheck:
+    name: ShellCheck Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: '.'
+          severity: warning
+          format: gcc
+          
+      - name: Display ShellCheck version
+        run: shellcheck --version
+        
+      - name: Check all shell scripts
+        run: |
+          echo "Checking shell scripts in the repository..."
+          find . -type f -name "*.sh" -not -path "./.git/*" | while read -r file; do
+            echo "Checking: $file"
+            shellcheck -x "$file" || exit 1
+          done
+          
+      - name: Check script permissions
+        run: |
+          echo "Verifying executable permissions..."
+          find scripts/ -type f -name "*.sh" | while read -r file; do
+            if [ ! -x "$file" ]; then
+              echo "Warning: $file is not executable"
+            fi
+          done

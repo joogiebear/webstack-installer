@@ -42,12 +42,16 @@ fi
 
 # Set permissions
 cd "$INSTALL_DIR"
-chmod +x *.sh
+chmod +x install.sh 2>/dev/null || true
+if [ -d "scripts" ]; then
+    chmod +x scripts/*.sh
+    echo "✅ Permissions set for all scripts"
+fi
 
 echo ""
 echo -e "${GREEN}✅ Installation complete!${NC}"
 echo ""
 echo "🚀 Get started:"
 echo "   cd $INSTALL_DIR"
-echo "   sudo ./webstack-menu.sh"
+echo "   sudo ./scripts/webstack-menu.sh"
 echo ""
