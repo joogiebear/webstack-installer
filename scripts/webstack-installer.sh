@@ -12,11 +12,87 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Global variables
+DRY_RUN=0
+LOG_DIR="/var/log/webstack-installer"
+LOG_FILE="$LOG_DIR/install-$(date +%Y%m%d-%H%M%S).log"
+ROLLBACK_STEPS=()
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --dry-run    Preview what will be installed without executing"
+            echo "  --help, -h   Show this help message"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo -e "${RED}❌ This script must be run as root${NC}"
     exit 1
 fi
+
+# Create log directory
+mkdir -p "$LOG_DIR"
+
+# Logging function
+log() {
+    local level="$1"
+    shift
+    local message="$*"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+
+    case $level in
+        ERROR)
+            echo -e "${RED}$message${NC}"
+            ;;
+        WARN)
+            echo -e "${YELLOW}$message${NC}"
+            ;;
+        INFO)
+            echo "$message"
+            ;;
+    esac
+}
+
+# Rollback function
+add_rollback_step() {
+    ROLLBACK_STEPS+=("$1")
+}
+
+perform_rollback() {
+    if [ ${#ROLLBACK_STEPS[@]} -eq 0 ]; then
+        return
+    fi
+
+    log "WARN" "⚠️  Installation failed. Rolling back changes..."
+
+    for ((i=${#ROLLBACK_STEPS[@]}-1; i>=0; i--)); do
+        eval "${ROLLBACK_STEPS[$i]}" 2>/dev/null || true
+    done
+
+    log "INFO" "✅ Rollback complete"
+}
+
+# Trap errors and perform rollback
+trap 'perform_rollback' ERR EXIT
 
 echo "╔════════════════════════════════════════════════════════════╗"
 echo "║          🚀 WebStack Installer v2.0                       ║"
@@ -142,27 +218,103 @@ if [ $NEEDS_INSTALL -eq 1 ]; then
     install_webstack
 fi
 
+# Enhanced domain validation function
+validate_domain() {
+    local domain="$1"
+
+    # Check if empty
+    if [ -z "$domain" ]; then
+        log "ERROR" "❌ Domain name cannot be empty"
+        return 1
+    fi
+
+    # Length check
+    if [ ${#domain} -gt 253 ]; then
+        log "ERROR" "❌ Domain name too long (max 253 characters)"
+        return 1
+    fi
+
+    if [ ${#domain} -lt 3 ]; then
+        log "ERROR" "❌ Domain name too short (min 3 characters)"
+        return 1
+    fi
+
+    # Format validation (supports subdomains)
+    if ! [[ "$domain" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$ ]]; then
+        log "ERROR" "❌ Invalid domain format"
+        log "INFO" "Valid examples: example.com, sub.example.com, blog.mysite.com"
+        return 1
+    fi
+
+    # Check for consecutive dots or hyphens
+    if [[ "$domain" =~ \.\. ]] || [[ "$domain" =~ -- ]]; then
+        log "ERROR" "❌ Domain cannot contain consecutive dots or hyphens"
+        return 1
+    fi
+
+    # Check if starts or ends with hyphen
+    if [[ "$domain" =~ ^- ]] || [[ "$domain" =~ -$ ]]; then
+        log "ERROR" "❌ Domain cannot start or end with hyphen"
+        return 1
+    fi
+
+    return 0
+}
+
+# Enhanced username generation with collision detection
+generate_username() {
+    local domain="$1"
+    local base_username=$(echo "$domain" | sed 's/\.//g' | tr '[:upper:]' '[:lower:]' | cut -c1-28)
+
+    # If username doesn't exist, use it
+    if ! id "$base_username" &>/dev/null && [ ! -d "/var/www/$base_username" ]; then
+        echo "$base_username"
+        return 0
+    fi
+
+    # Username collision detected, add hash suffix
+    log "WARN" "⚠️  Username collision detected, generating unique username..."
+    local hash_suffix=$(echo "$domain" | md5sum | cut -c1-3)
+    local username="${base_username:0:28}_$hash_suffix"
+
+    # Final check
+    if id "$username" &>/dev/null || [ -d "/var/www/$username" ]; then
+        log "ERROR" "❌ Unable to generate unique username for domain"
+        return 1
+    fi
+
+    log "WARN" "Generated username: $username"
+    echo "$username"
+    return 0
+}
+
 # Get domain name
+if [ $DRY_RUN -eq 1 ]; then
+    log "INFO" "🔍 DRY RUN MODE - No changes will be made"
+    echo ""
+fi
+
 read -rp "🌐 Enter domain name (e.g., example.com): " DOMAIN
 
-if [ -z "$DOMAIN" ]; then
-    echo -e "${RED}❌ Domain name cannot be empty${NC}"
+# Validate domain
+if ! validate_domain "$DOMAIN"; then
     exit 1
 fi
 
-# Validate domain format (supports subdomains)
-if ! [[ "$DOMAIN" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]{0,253}[a-zA-Z0-9]$ ]]; then
-    echo -e "${RED}❌ Invalid domain format${NC}"
-    echo "Valid examples: example.com, sub.example.com, blog.mysite.com"
+log "INFO" "✓ Domain validation passed: $DOMAIN"
+
+# Generate username
+USERNAME=$(generate_username "$DOMAIN")
+if [ -z "$USERNAME" ]; then
     exit 1
 fi
 
-# Create username from domain (remove dots, truncate to 32 chars)
-USERNAME=$(echo "$DOMAIN" | sed 's/\.//g' | cut -c1-32)
-
-# Check if domain already exists
-if [ -d "/var/www/$USERNAME" ]; then
-    echo -e "${RED}❌ Domain $DOMAIN already exists${NC}"
+# Additional check if domain already exists in tracking
+DOMAIN_INFO_DIR="/root/webstack-sites/$DOMAIN"
+if [ -d "$DOMAIN_INFO_DIR" ]; then
+    log "ERROR" "❌ Domain $DOMAIN is already installed"
+    log "INFO" "View info: cat $DOMAIN_INFO_DIR/info.txt"
+    log "INFO" "To remove: sudo ./scripts/remove-domain.sh"
     exit 1
 fi
 
@@ -172,23 +324,52 @@ echo "   Domain: $DOMAIN"
 echo "   Username: $USERNAME"
 echo ""
 
-read -rp "Continue with installation? [Y/n]: " CONFIRM
-if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
-    echo "Installation cancelled"
+if [ $DRY_RUN -eq 1 ]; then
+    log "INFO" ""
+    log "INFO" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "INFO" "DRY RUN SUMMARY - The following would be created:"
+    log "INFO" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "INFO" "✓ System user: $USERNAME"
+    log "INFO" "✓ Website directory: /var/www/$USERNAME/public_html"
+    log "INFO" "✓ Database: ${USERNAME}_db"
+    log "INFO" "✓ Database user: ${USERNAME}_user"
+    log "INFO" "✓ Apache vhost: /etc/apache2/sites-available/$DOMAIN.conf"
+    log "INFO" "✓ Domain info: /root/webstack-sites/$DOMAIN/info.txt"
+    log "INFO" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log "INFO" ""
+    log "INFO" "No changes were made. Run without --dry-run to proceed."
+    trap - ERR EXIT  # Disable error trap for dry run
     exit 0
 fi
 
+read -rp "Continue with installation? [Y/n]: " CONFIRM
+if [[ "$CONFIRM" =~ ^[Nn]$ ]]; then
+    log "INFO" "Installation cancelled by user"
+    trap - ERR EXIT  # Disable error trap when user cancels
+    exit 0
+fi
+
+log "INFO" "Starting installation for $DOMAIN..."
+
 # Create system user
-echo -e "${BLUE}👤 Creating system user...${NC}"
-useradd -m -s /bin/bash "$USERNAME" 2>/dev/null || true
+log "INFO" "👤 Creating system user..."
+if useradd -m -s /bin/bash "$USERNAME" 2>/dev/null; then
+    add_rollback_step "userdel -r $USERNAME 2>/dev/null"
+    log "INFO" "✓ User created: $USERNAME"
+else
+    log "ERROR" "❌ Failed to create user: $USERNAME"
+    exit 1
+fi
 
 # Create directory structure
-echo -e "${BLUE}📂 Creating directory structure...${NC}"
+log "INFO" "📂 Creating directory structure..."
 SITE_ROOT="/var/www/$USERNAME/public_html"
 mkdir -p "$SITE_ROOT"
 mkdir -p "/var/www/$USERNAME/logs"
 mkdir -p "/var/www/$USERNAME/backups"
 mkdir -p "/var/www/$USERNAME/tmp"
+add_rollback_step "rm -rf /var/www/$USERNAME"
+log "INFO" "✓ Directory structure created"
 
 # Generate database credentials
 DB_NAME="${USERNAME}_db"
@@ -196,13 +377,20 @@ DB_USER="${USERNAME}_user"
 DB_PASS=$(openssl rand -base64 16 | tr -d '/+=' | cut -c1-16)
 
 # Create database
-echo -e "${BLUE}🗄️  Creating MySQL database...${NC}"
-mysql -u root <<EOF
+log "INFO" "🗄️  Creating MySQL database..."
+if mysql -u root <<EOF
 CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';
 GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';
 FLUSH PRIVILEGES;
 EOF
+then
+    add_rollback_step "mysql -u root -e \"DROP DATABASE IF EXISTS \\\`$DB_NAME\\\`; DROP USER IF EXISTS '$DB_USER'@'localhost';\""
+    log "INFO" "✓ Database and user created"
+else
+    log "ERROR" "❌ Failed to create database"
+    exit 1
+fi
 
 # Create domain info directory
 DOMAIN_INFO_DIR="/root/webstack-sites/$DOMAIN"
@@ -267,7 +455,7 @@ EOF
 chmod 600 "$INFO_FILE"
 
 # Create Apache virtual host
-echo -e "${BLUE}⚙️  Creating Apache virtual host...${NC}"
+log "INFO" "⚙️  Creating Apache virtual host..."
 VHOST_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 
 cat > "$VHOST_CONF" <<EOF
@@ -292,6 +480,10 @@ cat > "$VHOST_CONF" <<EOF
     php_admin_value session.save_path "/var/www/$USERNAME/tmp"
 </VirtualHost>
 EOF
+
+add_rollback_step "rm -f /etc/apache2/sites-available/$DOMAIN.conf"
+add_rollback_step "a2dissite $DOMAIN 2>/dev/null"
+log "INFO" "✓ Apache virtual host created"
 
 # Create default index page
 cat > "$SITE_ROOT/index.php" <<'EOFINDEX'
@@ -388,29 +580,44 @@ if [ -d "/usr/share/phpmyadmin" ]; then
 fi
 
 # Set permissions
-echo -e "${BLUE}🔒 Setting permissions...${NC}"
+log "INFO" "🔒 Setting permissions..."
 chown -R www-data:www-data "/var/www/$USERNAME"
 chmod 755 "$SITE_ROOT"
 chmod 700 "/var/www/$USERNAME/tmp"
+log "INFO" "✓ Permissions set"
 
 # Enable site
-echo -e "${BLUE}✅ Enabling site...${NC}"
-a2ensite "$DOMAIN" > /dev/null 2>&1
-
-# Test Apache configuration
-if apache2ctl configtest > /dev/null 2>&1; then
-    # Reload Apache
-    systemctl reload apache2
+log "INFO" "✅ Enabling site..."
+if a2ensite "$DOMAIN" > /dev/null 2>&1; then
+    log "INFO" "✓ Site enabled"
 else
-    echo -e "${YELLOW}⚠️  Apache configuration test failed. Checking...${NC}"
-    apache2ctl configtest
+    log "WARN" "⚠️  Failed to enable site"
 fi
 
-echo ""
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║          ✅ INSTALLATION COMPLETE!                        ║"
-echo "╚════════════════════════════════════════════════════════════╝"
-echo ""
+# Test Apache configuration
+log "INFO" "Testing Apache configuration..."
+if apache2ctl configtest > /dev/null 2>&1; then
+    # Reload Apache
+    if systemctl reload apache2; then
+        log "INFO" "✓ Apache reloaded successfully"
+    else
+        log "ERROR" "❌ Failed to reload Apache"
+        exit 1
+    fi
+else
+    log "WARN" "⚠️  Apache configuration test failed. Checking..."
+    apache2ctl configtest
+    exit 1
+fi
+
+# Installation successful - disable error trap
+trap - ERR EXIT
+
+log "INFO" ""
+log "INFO" "╔════════════════════════════════════════════════════════════╗"
+log "INFO" "║          ✅ INSTALLATION COMPLETE!                        ║"
+log "INFO" "╚════════════════════════════════════════════════════════════╝"
+log "INFO" ""
 echo -e "${GREEN}Domain: $DOMAIN${NC}"
 echo -e "${GREEN}Website: http://$DOMAIN${NC}"
 echo -e "${GREEN}phpMyAdmin: http://$DOMAIN/phpmyadmin${NC}"
@@ -421,6 +628,7 @@ echo "   Username: $DB_USER"
 echo "   Password: $DB_PASS"
 echo ""
 echo "💾 Complete info saved to: $INFO_FILE"
+echo "📋 Installation log: $LOG_FILE"
 echo ""
 echo "🎯 Next Steps:"
 echo "   1. Point DNS A record to: $(hostname -I | awk '{print $1}')"
@@ -430,3 +638,5 @@ echo "   4. Install SSL: certbot --apache -d $DOMAIN -d www.$DOMAIN"
 echo ""
 echo "📖 View info anytime: cat $INFO_FILE"
 echo ""
+
+log "INFO" "Installation completed successfully for $DOMAIN"
