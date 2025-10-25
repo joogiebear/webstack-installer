@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  syntax-check:
+    name: Syntax Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Bash syntax check
+        run: |
+          echo "Checking bash syntax for all scripts..."
+          find . -type f -name "*.sh" -not -path "./.git/*" | while read -r script; do
+            echo "Checking: $script"
+            bash -n "$script" || exit 1
+          done
+          
+  markdown-lint:
+    name: Markdown Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Lint Markdown files
+        uses: articulate/actions-markdownlint@v1
+        with:
+          config: .markdownlint.json
+          files: '*.md'
+          ignore: node_modules
+        continue-on-error: true
+        
+  file-permissions:
+    name: Check File Permissions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Verify script permissions
+        run: |
+          echo "Checking that all .sh files in scripts/ are executable..."
+          all_good=true
+          find scripts/ -type f -name "*.sh" 2>/dev/null | while read -r script; do
+            if [ ! -x "$script" ]; then
+              echo "❌ Not executable: $script"
+              all_good=false
+            else
+              echo "✅ Executable: $script"
+            fi
+          done
+          if [ "$all_good" = false ]; then
+            exit 1
+          fi
+          
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+        
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
+        continue-on-error: true

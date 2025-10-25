@@ -1,5 +1,11 @@
 # 🚀 WebStack Installer v2.0
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/joogiebear/webstack-installer.svg)](https://github.com/joogiebear/webstack-installer/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/joogiebear/webstack-installer.svg)](https://github.com/joogiebear/webstack-installer/issues)
+[![GitHub forks](https://img.shields.io/github/forks/joogiebear/webstack-installer.svg)](https://github.com/joogiebear/webstack-installer/network)
+[![GitHub last commit](https://img.shields.io/github/last-commit/joogiebear/webstack-installer.svg)](https://github.com/joogiebear/webstack-installer/commits/main)
+
 **Complete Multi-Domain Web Hosting Automation**
 
 Transform your VPS into a powerful multi-domain hosting platform with Apache, MySQL, PHP, and optional email server support.
@@ -236,9 +242,9 @@ MIT License - See LICENSE file for details
 
 ## 🙏 Support
 
-- 📚 **Documentation**: [GitHub Wiki](#)
-- 🐛 **Bug Reports**: [GitHub Issues](#)
-- 💬 **Discussions**: [GitHub Discussions](#)
+- 📚 **Documentation**: [GitHub Wiki](https://github.com/joogiebear/webstack-installer/wiki)
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/joogiebear/webstack-installer/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/joogiebear/webstack-installer/discussions)
 
 ---
 
