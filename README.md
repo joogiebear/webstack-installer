@@ -63,7 +63,14 @@ sudo ./webstack-menu.sh
 
 ### Install a New Domain
 ```bash
-sudo ./webstack-installer.sh
+# Standard installation
+sudo ./scripts/webstack-installer.sh
+
+# Preview without making changes (dry-run)
+sudo ./scripts/webstack-installer.sh --dry-run
+
+# View help
+sudo ./scripts/webstack-installer.sh --help
 ```
 
 ### List All Domains
@@ -116,6 +123,22 @@ For each domain, the installer creates:
 - Secure database credentials storage
 - SSL/TLS ready
 - Optional ModSecurity support
+- Security hardening script with HTTP headers
+- Automatic rollback on installation failure
+- Comprehensive installation logging
+
+### Security Hardening
+Apply additional security measures:
+```bash
+sudo ./scripts/harden-security.sh
+```
+
+Features:
+- Security headers (X-Frame-Options, CSP, HSTS)
+- Hide server information
+- Disable dangerous PHP functions
+- ModSecurity WAF (optional)
+- Secure file permissions
 
 ---
 
@@ -159,7 +182,7 @@ sudo cat /var/www/[username]/db-credentials.txt
 | Script | Description |
 |--------|-------------|
 | `webstack-menu.sh` | Interactive management menu |
-| `webstack-installer.sh` | Install new domain |
+| `webstack-installer.sh` | Install new domain (supports --dry-run, --help) |
 | `remove-domain.sh` | Remove domain completely |
 | `list-domains.sh` | List all managed domains |
 | `domain-info.sh` | View domain details |
@@ -167,33 +190,66 @@ sudo cat /var/www/[username]/db-credentials.txt
 | `restore-domain.sh` | Restore from backup |
 | `setup-email.sh` | Install email server |
 | `manage-email.sh` | Manage email accounts |
+| `harden-security.sh` | Apply security hardening (headers, PHP settings) |
+| `test-installation.sh` | Run automated tests to verify system readiness |
 
 ---
 
+## 🧪 Testing
+
+Before installation, verify your system is ready:
+```bash
+sudo ./scripts/test-installation.sh
+```
+
+This runs automated tests to check:
+- Required packages installed
+- Services running
+- Script syntax validation
+- Domain validation logic
+- Apache configuration
+- MySQL connectivity
+
 ## 📖 Example Workflow
 
-1. **Install a domain:**
+1. **Test your system:**
    ```bash
-   sudo ./webstack-installer.sh
+   sudo ./scripts/test-installation.sh
+   ```
+
+2. **Preview installation (optional):**
+   ```bash
+   sudo ./scripts/webstack-installer.sh --dry-run
    # Enter: example.com
    ```
 
-2. **Point DNS to your server:**
+3. **Install a domain:**
+   ```bash
+   sudo ./scripts/webstack-installer.sh
+   # Enter: example.com
+   ```
+
+4. **Point DNS to your server:**
    - Add A record: `example.com` → `your-server-ip`
    - Add A record: `www.example.com` → `your-server-ip`
 
-3. **Upload your website:**
+5. **Upload your website:**
    ```bash
    # Via SFTP or SCP
    scp -r ./website/* user@server:/var/www/examplecom/public_html/
    ```
 
-4. **Install SSL:**
+6. **Install SSL:**
    ```bash
    sudo certbot --apache -d example.com -d www.example.com
    ```
 
-5. **Done!** Visit https://example.com
+7. **Apply security hardening (recommended):**
+   ```bash
+   sudo ./scripts/harden-security.sh
+   ```
+
+8. **Done!** Visit https://example.com
 
 ---
 
