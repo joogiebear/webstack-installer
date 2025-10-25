@@ -14,6 +14,7 @@ Transform your VPS into a powerful multi-domain hosting platform with Apache, My
 
 ## ✨ Features
 
+### Core Features
 - 🌐 **Multi-Domain Hosting** - Host unlimited websites on one server
 - 🗄️ **Automated Database Setup** - MySQL database created per domain
 - 🔒 **Security First** - Isolated users, secure permissions, SSL ready
@@ -21,6 +22,18 @@ Transform your VPS into a powerful multi-domain hosting platform with Apache, My
 - 🎯 **Interactive Menu** - User-friendly management interface
 - 📦 **Backup & Restore** - Protect your websites
 - 🎨 **Modern Default Page** - Professional landing page
+
+### Advanced Features (v2.0+)
+- 🔐 **SSL Manager** - Complete SSL certificate automation and monitoring
+- 📊 **Health Monitoring** - System diagnostics with recommendations
+- 📋 **JSON/CSV Export** - Export domain data for automation
+- 🔄 **Domain Cloning** - Duplicate domains with one command
+- 🎯 **Bulk Backups** - Backup all domains simultaneously
+- 🔍 **Advanced Filtering** - Filter and sort domains by multiple criteria
+- 🚀 **Parallel Processing** - Speed up bulk operations
+- 📡 **Remote Backups** - Automatic rsync to backup servers
+- 🏥 **Health Checks** - Comprehensive system diagnostics
+- 📈 **Resource Monitoring** - Track disk, memory, SSL expiry
 
 ---
 
@@ -160,38 +173,103 @@ Features:
 
 ## 🔄 Common Tasks
 
-### Install SSL Certificate
+### Manage SSL Certificates
 ```bash
+# Interactive SSL manager (recommended)
+sudo ./scripts/ssl-manager.sh
+
+# Or install directly
 certbot --apache -d example.com -d www.example.com
 ```
 
-### Backup a Domain
+### Backup Domains
 ```bash
-sudo ./backup-domain.sh
+# Backup single domain
+sudo ./scripts/backup-domain.sh
+
+# Backup all domains at once (new!)
+sudo ./scripts/backup-all.sh
+
+# Backup with remote copy
+sudo ./scripts/backup-all.sh --remote user@backup-server --remote-path /backups
 ```
 
-### View Database Credentials
+### List and Monitor Domains
 ```bash
-sudo cat /var/www/[username]/db-credentials.txt
+# List all domains (table view)
+sudo ./scripts/list-domains.sh
+
+# Export to JSON
+sudo ./scripts/list-domains.sh --json
+
+# Show SSL status
+sudo ./scripts/list-domains.sh --ssl --stats
+```
+
+### Check System Health
+```bash
+# Run comprehensive health check
+sudo ./scripts/health-check.sh
+```
+
+### Clone a Domain
+```bash
+# Duplicate existing domain with new name
+sudo ./scripts/clone-domain.sh
+```
+
+### View Domain Information
+```bash
+# Pretty formatted view
+sudo ./scripts/domain-info.sh example.com
+
+# JSON output
+sudo ./scripts/domain-info.sh --json example.com
 ```
 
 ---
 
 ## 🛠️ Available Scripts
 
+### Core Management
 | Script | Description |
 |--------|-------------|
 | `webstack-menu.sh` | Interactive management menu |
 | `webstack-installer.sh` | Install new domain (supports --dry-run, --help) |
 | `remove-domain.sh` | Remove domain completely |
-| `list-domains.sh` | List all managed domains |
-| `domain-info.sh` | View domain details |
-| `backup-domain.sh` | Backup domain files & database |
+| `clone-domain.sh` | **NEW** Clone/duplicate existing domain with new name |
+
+### Information & Monitoring
+| Script | Description |
+|--------|-------------|
+| `list-domains.sh` | **Enhanced** List domains (JSON/CSV, filtering, sorting) |
+| `domain-info.sh` | **Enhanced** View domain details (JSON support, SSL status) |
+| `health-check.sh` | **NEW** System health diagnostics and recommendations |
+
+### Backup & Restore
+| Script | Description |
+|--------|-------------|
+| `backup-domain.sh` | Backup single domain files & database |
+| `backup-all.sh` | **NEW** Backup all domains at once (parallel, remote) |
 | `restore-domain.sh` | Restore from backup |
+
+### SSL Management
+| Script | Description |
+|--------|-------------|
+| `ssl-manager.sh` | **NEW** Complete SSL management suite (install, renew, monitor) |
+
+### Email (Optional)
+| Script | Description |
+|--------|-------------|
 | `setup-email.sh` | Install email server |
 | `manage-email.sh` | Manage email accounts |
+
+### Security & Maintenance
+| Script | Description |
+|--------|-------------|
 | `harden-security.sh` | Apply security hardening (headers, PHP settings) |
 | `test-installation.sh` | Run automated tests to verify system readiness |
+| `update-domain.sh` | Update domain configuration |
 
 ---
 
